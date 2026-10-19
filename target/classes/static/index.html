@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Productos</title>
+<style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; margin: 0; background: #f4f6f8; color: #222; }
+    header { background: #2c3e50; padding: 20px; }
+    .barra { max-width: 900px; margin: 0 auto; display: flex; gap: 8px; padding: 0 10px; }
+    .barra input { flex: 1; padding: 12px; font-size: 16px; border: none; border-radius: 6px; }
+    .barra button { padding: 12px 20px; font-size: 16px; border: none; border-radius: 6px; background: #3498db; color: #fff; cursor: pointer; }
+    .barra button:disabled { background: #7f8c8d; cursor: wait; }
+    
+    main { max-width: 900px; margin: 20px auto; padding: 0 16px; }
+    #estado { text-align: center; margin: 12px 0; color: #555; min-height: 24px; }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 3px solid #ccc; border-top-color: #3498db;
+               border-radius: 50%; animation: giro 0.8s linear infinite; vertical-align: middle; margin-right: 8px; }
+    @keyframes giro { to { transform: rotate(360deg); } }
+    
+    #lista { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 16px; }
+    .tarjeta { background: #fff; border-radius: 8px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.15); cursor: pointer; transition: transform 0.2s; }
+    .tarjeta:hover { transform: translateY(-3px); }
+    .tarjeta img { width: 100%; height: 140px; object-fit: cover; border-radius: 6px; margin-bottom: 10px; }
+    .tarjeta h3 { margin: 0 0 8px; }
+    .tarjeta p { margin: 4px 0; font-size: 14px; }
+    .precio { font-size: 20px; font-weight: bold; color: #27ae60; }
+    
+    .acciones { margin-top: 12px; display: flex; gap: 8px; }
+    .acciones button { flex: 1; padding: 10px; border: none; border-radius: 4px; cursor: pointer; color: #fff; font-size: 14px; }
+    .editar { background: #f39c12; }
+    .eliminar { background: #e74c3c; }
+    .nuevo { margin: 20px 0 8px; padding: 12px 18px; border: none; border-radius: 6px; background: #27ae60; color: #fff; font-size: 16px; cursor: pointer; width: 100%; }
+    
+    #formulario { display: none; background: #fff; padding: 16px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,.15); margin-bottom: 20px; }
+    #formulario input, #formulario textarea { width: 100%; padding: 10px; margin: 4px 0 10px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+    #formulario label { font-size: 14px; font-weight: bold; }
+    #formulario .fila { display: flex; gap: 12px; }
+    #formulario .fila div { flex: 1; }
+    .guardar { background: #3498db; color: #fff; border: none; padding: 12px 18px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 48%; }
+    .cancelar { background: #95a5a6; color: #fff; border: none; padding: 12px 18px; border-radius: 6px; cursor: pointer; font-size: 16px; width: 48%; margin-left: 0; }
+
+    /* PANTALLA FLOTANTE (MODAL) ADAPTABLE */
+    #modal-overlay {
+        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 1000; padding: 10px;
+    }
+    .modal-content {
+        background: white; padding: 20px; border-radius: 10px; width: 420px; max-width: 100%;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: left; max-height: 90vh; overflow-y: auto;
+    }
+    .modal-content img { width: 100%; height: 180px; object-fit: cover; border-radius: 6px; margin-bottom: 15px; }
+    .modal-content h2 { margin: 0 0 10px 0; font-size: 22px; }
+    .modal-botones { display: flex; gap: 8px; margin-top: 20px; }
+    .btn-back { background: #7f8c8d; color: white; border: none; padding: 12px; border-radius: 4px; cursor: pointer; flex: 1; font-size: 14px; }
+    .btn-back:hover { background: #6c7a89; }
+
+    /* MEDIA QUERIES PARA DISPOSITIVOS MÓVILES (PANTALLAS MENORES A 600px) */
+    @media (max-width: 600px) {
+        .barra { flex-direction: column; }
+        .barra button { width: 100%; }
+        
+        #formulario .fila {
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .guardar, .cancelar {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .modal-botones {
+            flex-direction: column;
+        }
+
+        .modal-botones button {
+            width: 100%;
+            padding: 12px;
+        }
+    }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="barra">
+    <input id="busqueda" type="text" placeholder="Buscar producto por nombre...">
+    <button id="btnBuscar">Buscar</button>
+  </div>
+</header>
+
+<main>
+  <div id="estado"></div>
+
+  <div id="lista"></div>
+
+  <button class="nuevo" id="btnNuevo">+ Nuevo producto</button>
+
+  <form id="formulario">
+    <input type="hidden" id="id">
+    <label>Nombre</label>
+    <input id="nombre" required>
+    
+    <label>Descripción</label>
+    <textarea id="descripcion" rows="2"></textarea>
+    
+    <label>URL de la Foto</label>
+    <input id="foto" type="text" placeholder="https://ejemplo.com/imagen.jpg">
+
+    <div class="fila">
+      <div><label>Precio</label><input id="precio" type="number" step="0.01" min="0" required></div>
+      <div><label>Stock</label><input id="stock" type="number" min="0" required></div>
+    </div>
+    
+    <div style="margin-top: 15px; display: flex; justify-content: space-between;">
+      <button type="submit" class="guardar">Guardar</button>
+      <button type="button" class="cancelar" id="btnCancelar">Cancelar</button>
+    </div>
+  </form>
+</main>
+
+<!-- PANTALLA FLOTANTE (MODAL) -->
+<div id="modal-overlay">
+    <div class="modal-content">
+        <img id="modal-foto" src="" alt="Foto del producto">
+        <h2 id="modal-nombre"></h2>
+        <p><strong>Descripción:</strong> <span id="modal-descripcion"></span></p>
+        <p class="precio" id="modal-precio"></p>
+        <p><strong>Stock disponible:</strong> <span id="modal-stock"></span></p>
+        
+        <div class="modal-botones">
+            <button class="btn-back" onclick="cerrarModal()">← Back (Regresar)</button>
+            <button class="editar" onclick="editarDesdeModal()">Editar</button>
+            <button class="eliminar" onclick="eliminarDesdeModal()">Eliminar</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const API = '/api/productos';
+const $ = function(id) { return document.getElementById(id); };
+var productoActualId = null;
+
+async function cargar(q) {
+  if (!q) q = '';
+  var btn = $('btnBuscar');
+  var buscando = q.trim() !== '';
+  if (buscando) {
+    btn.disabled = true;
+    $('estado').innerHTML = '<span class="spinner"></span>Buscando... (puede tardar unos segundos)';
+  }
+  try {
+    var url = API + (buscando ? '?q=' + encodeURIComponent(q) : '');
+    var res = await fetch(url);
+    var productos = await res.json();
+    pintar(productos);
+    $('estado').textContent = productos.length === 0 ? 'No se encontraron productos.' : '';
+  } catch (e) {
+    $('estado').textContent = 'Error al cargar los productos.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function pintar(productos) {
+  var html = '';
+  for (var i = 0; i < productos.length; i++) {
+    var p = productos[i];
+    var foto = p.foto ? p.foto : 'https://via.placeholder.com/300';
+    var desc = p.descripcion ? p.descripcion : '';
+    var precio = p.precio.toFixed(2);
+    
+    html += '<div class="tarjeta" onclick="abrirDetalle(' + p.id + ')">';
+    html += '<img src="' + foto + '" alt="' + p.nombre + '">';
+    html += '<h3>' + p.nombre + '</h3>';
+    html += '<p>' + desc + '</p>';
+    html += '<p class="precio">$ ' + precio + '</p>';
+    html += '<p>Stock: ' + p.stock + '</p>';
+    html += '<div class="acciones" onclick="event.stopPropagation()">';
+    html += '<button class="editar" onclick="editar(' + p.id + ')">Editar</button>';
+    html += '<button class="eliminar" onclick="eliminar(' + p.id + ')">Eliminar</button>';
+    html += '</div></div>';
+  }
+  $('lista').innerHTML = html;
+}
+
+async function abrirDetalle(id) {
+  productoActualId = id;
+  try {
+    var res = await fetch(API + '/' + id);
+    if (!res.ok) throw new Error('No encontrado');
+    var p = await res.json();
+
+    $('modal-foto').src = p.foto ? p.foto : 'https://via.placeholder.com/300';
+    $('modal-nombre').textContent = p.nombre;
+    $('modal-descripcion').textContent = p.descripcion ? p.descripcion : 'Sin descripción';
+    $('modal-precio').textContent = '$ ' + p.precio.toFixed(2);
+    $('modal-stock').textContent = p.stock;
+
+    $('modal-overlay').style.display = 'flex';
+  } catch (e) {
+    alert('No se pudo cargar el detalle del producto.');
+  }
+}
+
+function cerrarModal() {
+  $('modal-overlay').style.display = 'none';
+  productoActualId = null;
+}
+
+function editarDesdeModal() {
+  var idParaEditar = productoActualId;
+  cerrarModal();
+  editar(idParaEditar);
+}
+
+async function eliminarDesdeModal() {
+  if (!confirm('¿Eliminar este producto?')) return;
+  await fetch(API + '/' + productoActualId, { method: 'DELETE' });
+  cerrarModal();
+  cargar();
+}
+
+$('formulario').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  var id = $('id').value;
+  var producto = {
+    nombre: $('nombre').value,
+    descripcion: $('descripcion').value,
+    foto: $('foto').value,
+    precio: parseFloat($('precio').value),
+    stock: parseInt($('stock').value)
+  };
+  var urlDestino = id ? API + '/' + id : API;
+  var metodo = id ? 'PUT' : 'POST';
+  
+  await fetch(urlDestino, {
+    method: metodo,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(producto)
+  });
+  cerrarFormulario();
+  cargar();
+});
+
+async function editar(id) {
+  var res = await fetch(API + '/' + id);
+  var p = await res.json();
+  $('id').value = p.id;
+  $('nombre').value = p.nombre;
+  $('descripcion').value = p.descripcion;
+  $('foto').value = p.foto ? p.foto : '';
+  $('precio').value = p.precio;
+  $('stock').value = p.stock;
+  $('formulario').style.display = 'block';
+  $('formulario').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function eliminar(id) {
+  if (!confirm('¿Eliminar este producto?')) return;
+  await fetch(API + '/' + id, { method: 'DELETE' });
+  cargar();
+}
+
+function cerrarFormulario() {
+  $('formulario').reset();
+  $('id').value = '';
+  $('formulario').style.display = 'none';
+}
+
+$('btnNuevo').onclick = function() { cerrarFormulario(); $('formulario').style.display = 'block'; };
+$('btnCancelar').onclick = cerrarFormulario;
+$('btnBuscar').onclick = function() { cargar($('busqueda').value); };
+$('busqueda').addEventListener('keydown', function(e) { if (e.key === 'Enter') cargar($('busqueda').value); });
+
+cargar();
+</script>
+</body>
+</html>
