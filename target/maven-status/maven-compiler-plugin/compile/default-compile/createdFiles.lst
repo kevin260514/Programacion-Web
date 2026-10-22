@@ -1,0 +1,6 @@
+com\ejemplo\productos\ProductoTools.class
+com\ejemplo\productos\AgenteController.class
+com\ejemplo\productos\ProductoRepository.class
+com\ejemplo\productos\Producto.class
+com\ejemplo\productos\ProductoController.class
+com\ejemplo\productos\CrudProductosApplication.class
